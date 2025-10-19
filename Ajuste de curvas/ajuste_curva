@@ -2,7 +2,8 @@
 #include <vector>
 #include <cmath>
 #include <iomanip>
-#include <sstream> // Incluido para manipular strings na formatacao
+#include <sstream>
+#include <limits> // Necessario para 'numeric_limits' e 'streamsize'
 
 using namespace std;
 
@@ -40,7 +41,7 @@ vector<double> eliminacaoDeGauss(vector<vector<double>>& Aumentada) {
 
 const int NUM_COEFICIENTES = 6; // Para: a0, a1x, a2y, a3x^2, a4y^2, a5xy
 
-// Funcao para calcular o termo (Ai^T * Aj) do sistema normal
+// Funcao para calcular o termo (Ai^T * Aj) do sistema normal (Matriz A^T * A)
 double calcularTermoATA(int i, int j, const vector<vector<double>>& pontos) {
     double soma = 0.0;
     
@@ -48,6 +49,7 @@ double calcularTermoATA(int i, int j, const vector<vector<double>>& pontos) {
         double x = p[0];
         double y = p[1];
         
+        // Bases polinomiais para o 2o grau
         vector<double> bases = {1.0, x, y, x * x, y * y, x * y};
         
         soma += bases[i] * bases[j];
@@ -55,7 +57,7 @@ double calcularTermoATA(int i, int j, const vector<vector<double>>& pontos) {
     return soma;
 }
 
-// Funcao para calcular o termo (Ai^T * b) do sistema normal
+// Funcao para calcular o termo (Ai^T * b) do sistema normal (Vetor A^T * b)
 double calcularTermoATb(int i, const vector<vector<double>>& pontos) {
     double soma = 0.0;
     
@@ -64,6 +66,7 @@ double calcularTermoATb(int i, const vector<vector<double>>& pontos) {
         double y = p[1];
         double z = p[2];
 
+        // Bases polinomiais para o 2o grau
         vector<double> bases = {1.0, x, y, x * x, y * y, x * y};
         
         soma += bases[i] * z;
@@ -110,6 +113,7 @@ int main() {
         return 1;
     }
 
+    // Montar a Matriz Aumentada [ A^T * A | A^T * b ]
     vector<vector<double>> sistemaNormal(NUM_COEFICIENTES, vector<double>(NUM_COEFICIENTES + 1));
 
     for (int i = 0; i < NUM_COEFICIENTES; i++) {
@@ -119,6 +123,7 @@ int main() {
         sistemaNormal[i][NUM_COEFICIENTES] = calcularTermoATb(i, pontos);
     }
 
+    // Resolver o Sistema Normal para encontrar os coeficientes 'c'
     vector<double> coeficientes = eliminacaoDeGauss(sistemaNormal);
 
     if (!coeficientes.empty()) {
@@ -138,12 +143,12 @@ int main() {
         for (int i = 1; i < NUM_COEFICIENTES; i++) {
             double c = coeficientes[i];
             
-            // Adiciona o sinal
+            // Adiciona o sinal e formata
             if (c >= 0) {
                 ss << " + ";
             } else {
                 ss << " - ";
-                c = abs(c); // Usa o valor absoluto do coeficiente apos adicionar o sinal
+                c = abs(c);
             }
             
             // Adiciona o coeficiente e a variavel
