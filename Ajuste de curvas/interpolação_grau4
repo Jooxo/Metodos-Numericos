@@ -1,0 +1,150 @@
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <iomanip>
+#include <sstream>
+#include <limits>
+
+using namespace std;
+
+// Funcao de Eliminação de Gauss (para resolver o sistema linear)
+vector<double> eliminacaoDeGauss(vector<vector<double>>& Aumentada) {
+    int n = Aumentada.size();
+    
+    // Etapa de Escalonamento (Eliminacao Direta)
+    for (int k = 0; k < n; k++) {
+        
+        // ** (Opcional, mas recomendado para estabilidade) Busca pelo maior pivo **
+        int i_max = k;
+        for (int i = k + 1; i < n; i++) {
+            if (abs(Aumentada[i][k]) > abs(Aumentada[i_max][k])) {
+                i_max = i;
+            }
+        }
+        if (i_max != k) {
+            swap(Aumentada[k], Aumentada[i_max]);
+        }
+        // *************************************************************************
+
+        if (abs(Aumentada[k][k]) < 1e-9) {
+            cerr << "ERRO NUMERICO: Pivo proximo de zero. Nao e possivel prosseguir." << endl;
+            return {};
+        }
+
+        for (int i = k + 1; i < n; i++) {
+            double fator = Aumentada[i][k] / Aumentada[k][k];
+            
+            for (int j = k; j < n + 1; j++) {
+                Aumentada[i][j] -= fator * Aumentada[k][j];
+            }
+        }
+    }
+
+    // Etapa de Substituicao Regressiva
+    vector<double> x(n);
+    for (int i = n - 1; i >= 0; i--) {
+        double soma = 0.0;
+        for (int j = i + 1; j < n; j++) {
+            soma += Aumentada[i][j] * x[j];
+        }
+        x[i] = (Aumentada[i][n] - soma) / Aumentada[i][i];
+    }
+    return x;
+}
+
+const int GRAU_POLINOMIO = 4;
+const int NUM_PONTOS_MIN = GRAU_POLINOMIO + 1; // 5 pontos para grau 4
+
+int main() {
+    vector<pair<double, double>> pontos; // Armazena (x, y)
+    double x_novo, y_novo;
+    string entrada;
+
+    cout << "### Interpolacao Polinomial (Grau " << GRAU_POLINOMIO << ") ###" << endl;
+    cout << "Insira os pontos (x y). Digite 'fim' para calcular a interpolacao." << endl;
+    cout << "Sao necessarios exatamente " << NUM_PONTOS_MIN << " pontos distintos." << endl;
+
+    while (true) {
+        cout << "Ponto " << pontos.size() + 1 << " (x y) ou 'fim': ";
+        
+        if (!(cin >> x_novo)) {
+            cin.clear();
+            cin >> entrada;
+            if (entrada == "fim") {
+                break;
+            } else {
+                cerr << "Entrada invalida. Tente novamente." << endl;
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                continue;
+            }
+        }
+        
+        if (!(cin >> y_novo)) {
+             cerr << "Entrada invalida. Falta a coordenada y. Tente novamente." << endl;
+             cin.ignore(numeric_limits<streamsize>::max(), '\n');
+             continue;
+        }
+
+        pontos.push_back({x_novo, y_novo});
+        if (pontos.size() == NUM_PONTOS_MIN) {
+            break; // Se atingiu o numero exato, pode parar
+        }
+    }
+
+    if (pontos.size() != NUM_PONTOS_MIN) {
+        cout << "ERRO: A interpolacao polinomial de grau " << GRAU_POLINOMIO 
+             << " requer EXATAMENTE " << NUM_PONTOS_MIN << " pontos." << endl;
+        return 1;
+    }
+
+    // Montar a Matriz Aumentada [ V | Y ] (V de Vandermonde)
+    vector<vector<double>> sistemaVandermonde(NUM_PONTOS_MIN, vector<double>(NUM_PONTOS_MIN + 1));
+
+    for (int i = 0; i < NUM_PONTOS_MIN; i++) {
+        double x_i = pontos[i].first;
+        double y_i = pontos[i].second;
+
+        for (int j = 0; j < NUM_PONTOS_MIN; j++) {
+            // V[i][j] = x_i ^ j
+            sistemaVandermonde[i][j] = pow(x_i, j);
+        }
+        // O vetor de resultados y
+        sistemaVandermonde[i][NUM_PONTOS_MIN] = y_i;
+    }
+
+    // Resolver o Sistema para encontrar os coeficientes 'a'
+    vector<double> coeficientes = eliminacaoDeGauss(sistemaVandermonde);
+
+    if (!coeficientes.empty()) {
+        cout << "\n========================================================" << endl;
+        cout << "RESULTADO DA INTERPOLACAO: POLINOMIO DE " << GRAU_POLINOMIO << "o GRAU" << endl;
+        cout << "========================================================" << endl;
+        
+        stringstream ss;
+        ss << fixed << setprecision(6);
+
+        // Termo a0
+        ss << "P(x) = " << coeficientes[0];
+
+        // Demais termos (a1x, a2x^2, ..., a4x^4)
+        for (int i = 1; i < NUM_PONTOS_MIN; i++) {
+            double c = coeficientes[i];
+            
+            // Adiciona o sinal
+            if (c >= 0) {
+                ss << " + ";
+            } else {
+                ss << " - ";
+                c = abs(c); 
+            }
+            
+            // Adiciona o coeficiente e a variavel x^i
+            ss << c << "x^" << i;
+        }
+
+        cout << ss.str() << endl;
+        cout << "========================================================" << endl;
+    }
+
+    return 0;
+}
