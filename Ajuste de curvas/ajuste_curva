@@ -2,11 +2,11 @@
 #include <vector>
 #include <cmath>
 #include <iomanip>
+#include <sstream> // Incluido para manipular strings na formatacao
 
 using namespace std;
 
 // Funcao de Eliminação de Gauss (usada para resolver o Sistema Normal)
-// Adaptada do exemplo anterior para um sistema generico
 vector<double> eliminacaoDeGauss(vector<vector<double>>& Aumentada) {
     int n = Aumentada.size();
     
@@ -38,23 +38,16 @@ vector<double> eliminacaoDeGauss(vector<vector<double>>& Aumentada) {
     return x;
 }
 
-// =========================================================================
-// AJUSTE DE SUPERFICIE 3D (POLINOMIAL DE 2 GRAU)
-// =========================================================================
-
 const int NUM_COEFICIENTES = 6; // Para: a0, a1x, a2y, a3x^2, a4y^2, a5xy
 
 // Funcao para calcular o termo (Ai^T * Aj) do sistema normal
 double calcularTermoATA(int i, int j, const vector<vector<double>>& pontos) {
     double soma = 0.0;
     
-    // Loop sobre todos os pontos (N)
     for (const auto& p : pontos) {
         double x = p[0];
         double y = p[1];
-        // p[2] seria z, mas nao e usado neste calculo
-
-        // Vetor de Bases/Funcoes (f0=1, f1=x, f2=y, f3=x^2, f4=y^2, f5=xy)
+        
         vector<double> bases = {1.0, x, y, x * x, y * y, x * y};
         
         soma += bases[i] * bases[j];
@@ -66,13 +59,11 @@ double calcularTermoATA(int i, int j, const vector<vector<double>>& pontos) {
 double calcularTermoATb(int i, const vector<vector<double>>& pontos) {
     double soma = 0.0;
     
-    // Loop sobre todos os pontos (N)
     for (const auto& p : pontos) {
         double x = p[0];
         double y = p[1];
         double z = p[2];
 
-        // Vetor de Bases/Funcoes (f0=1, f1=x, f2=y, f3=x^2, f4=y^2, f5=xy)
         vector<double> bases = {1.0, x, y, x * x, y * y, x * y};
         
         soma += bases[i] * z;
@@ -82,18 +73,17 @@ double calcularTermoATb(int i, const vector<vector<double>>& pontos) {
 
 
 int main() {
-    vector<vector<double>> pontos; // Armazena os pontos (x, y, z)
+    vector<vector<double>> pontos;
     double x_novo, y_novo, z_novo;
     string entrada;
 
     cout << "### Ajuste de Superficie 3D (Minimos Quadrados - Polinomio de 2o Grau) ###" << endl;
-    cout << "Insira os pontos (x, y, z). Digite 'fim' para calcular o ajuste." << endl;
+    cout << "Insira os pontos (x y z). Digite 'fim' para calcular o ajuste." << endl;
     cout << "Sao necessarios pelo menos 6 pontos." << endl;
 
     while (true) {
         cout << "Ponto " << pontos.size() + 1 << " (x y z) ou 'fim': ";
         
-        // Permite ler 'fim' ou os 3 numeros
         if (!(cin >> x_novo)) {
             cin.clear();
             cin >> entrada;
@@ -101,13 +91,14 @@ int main() {
                 break;
             } else {
                 cerr << "Entrada invalida. Tente novamente." << endl;
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
                 continue;
             }
         }
         
-        // Tenta ler y e z
         if (!(cin >> y_novo >> z_novo)) {
              cerr << "Entrada invalida. Faltam coordenadas (y z). Tente novamente." << endl;
+             cin.ignore(numeric_limits<streamsize>::max(), '\n');
              continue;
         }
 
@@ -119,39 +110,48 @@ int main() {
         return 1;
     }
 
-    // Montar a Matriz Aumentada [ A^T * A | A^T * b ]
     vector<vector<double>> sistemaNormal(NUM_COEFICIENTES, vector<double>(NUM_COEFICIENTES + 1));
-
-    cout << "Iniciando calculo dos termos do Sistema Normal..." << endl;
 
     for (int i = 0; i < NUM_COEFICIENTES; i++) {
         for (int j = 0; j < NUM_COEFICIENTES; j++) {
-            // A^T * A
             sistemaNormal[i][j] = calcularTermoATA(i, j, pontos);
         }
-        // A^T * b
         sistemaNormal[i][NUM_COEFICIENTES] = calcularTermoATb(i, pontos);
     }
 
-    cout << "Sistema Normal (Matriz Aumentada 6x7):" << endl;
-    for (int i = 0; i < NUM_COEFICIENTES; i++) {
-        for (int j = 0; j < NUM_COEFICIENTES + 1; j++) {
-            cout << fixed << setprecision(2) << sistemaNormal[i][j] << "\t";
-        }
-        cout << endl;
-    }
-    cout << "---------------------------------------" << endl;
-
-    // Resolver o Sistema Normal para encontrar os coeficientes 'c'
     vector<double> coeficientes = eliminacaoDeGauss(sistemaNormal);
 
     if (!coeficientes.empty()) {
-        cout << "Ajuste de Superficie Concluido!" << endl;
-        cout << "Equacao (z = a0 + a1x + a2y + a3x^2 + a4y^2 + a5xy):" << endl;
+        cout << "\n========================================================" << endl;
+        cout << "RESULTADO DO AJUSTE: POLINOMIO DA SUPERFICIE" << endl;
+        cout << "========================================================" << endl;
         
-        cout << fixed << setprecision(4);
-        cout << "z = " << coeficientes[0] << " + " << coeficientes[1] << "x + " << coeficientes[2] << "y + "
-             << coeficientes[3] << "x^2 + " << coeficientes[4] << "y^2 + " << coeficientes[5] << "xy" << endl;
+        stringstream ss;
+        ss << fixed << setprecision(6);
+
+        // Termo a0
+        ss << "z = " << coeficientes[0];
+
+        // Demais termos (a1x, a2y, a3x^2, a4y^2, a5xy)
+        vector<string> termos_variaveis = {"x", "y", "x^2", "y^2", "xy"};
+
+        for (int i = 1; i < NUM_COEFICIENTES; i++) {
+            double c = coeficientes[i];
+            
+            // Adiciona o sinal
+            if (c >= 0) {
+                ss << " + ";
+            } else {
+                ss << " - ";
+                c = abs(c); // Usa o valor absoluto do coeficiente apos adicionar o sinal
+            }
+            
+            // Adiciona o coeficiente e a variavel
+            ss << c << termos_variaveis[i - 1];
+        }
+
+        cout << ss.str() << endl;
+        cout << "========================================================" << endl;
     }
 
     return 0;
